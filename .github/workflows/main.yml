@@ -7,9 +7,25 @@ on:
 
 jobs:
   test:
-    name: Functional Test
+    name: Test on ${{ matrix.browser }}
     permissions: write-all
     runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - browser: firefox
+            port: 4444
+            image: selenium/standalone-firefox:latest
+
+          - browser: chrome
+            port: 4445
+            image: selenium/standalone-chrome:latest
+
+          - browser: edge
+            port: 4446
+            image: selenium/standalone-edge:latest
 
     steps:
       - name: Checkout the repo
@@ -22,7 +38,7 @@ jobs:
         run: docker build -t my-php-site:latest .
 
       - name: Run AUT
-        run: docker run --network=isolated -p 80:80 --name docker-apache -t -d my-php-site:latest
+        run: docker run --network=isolated -p 80:80 --name docker-apache -d my-php-site:latest
 
       - name: Get AUT URL
         run: |
@@ -32,28 +48,36 @@ jobs:
       - name: Check AUT Url
         run: curl ${{ env.URL }}
 
-      - name: Selenium Preparation
-        run: docker run --network=isolated -d -p 4444:4444 -p 7900:7900 -v /dev/shm:/dev/shm --name firefox-standalone selenium/standalone-firefox:latest
+      - name: Start Selenium
+        run: |
+          docker run \
+          --network=isolated \
+          -d \
+          -p ${{ matrix.port }}:4444 \
+          -v /dev/shm:/dev/shm \
+          --name selenium-${{ matrix.browser }} \
+          ${{ matrix.image }}
 
       - name: Wait for Selenium Hub
         run: sh wait.sh
 
-      - name: Check the Hub
-        run: curl http://localhost:4444/ui
+      - name: Check Selenium Hub
+        run: curl http://localhost:${{ matrix.port }}
 
-      - name: Install Selenium client
+      - name: Install Selenium Client
         run: pip install -U selenium
 
-      - name: Run test
-        run: python tests/hello_aut.py ${{ env.URL }}
-      
-      - name: 'Upload Artifact'
+      - name: Run Test
+        run: python tests/hello_aut.py ${{ env.URL }} ${{ matrix.browser }}
+
+      - name: Upload Screenshot
         uses: actions/upload-artifact@v4
         with:
-          name: Screenshot
+          name: Screenshot-${{ matrix.browser }}
           path: screenshot.png
 
-      - name: stop docker
+      - name: Stop Docker
+        if: always()
         run: |
-          docker stop firefox-standalone
+          docker stop selenium-${{ matrix.browser }}
           docker stop docker-apache
