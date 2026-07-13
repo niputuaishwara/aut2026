@@ -59,10 +59,10 @@ jobs:
           ${{ matrix.image }}
 
       - name: Wait for Selenium Hub
-        run: sh wait.sh
+        run: sh wait.sh ${{ matrix.port }}
 
       - name: Check Selenium Hub
-        run: curl http://localhost:${{ matrix.port }}
+        run: curl http://localhost:${{ matrix.port }}/status
 
       - name: Install Selenium Client
         run: pip install -U selenium

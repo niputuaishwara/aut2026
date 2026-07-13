@@ -2,8 +2,10 @@
 
 PORT=$1
 
-until curl --output /dev/null --silent --head --fail http://localhost:$PORT
+until curl --silent --fail http://localhost:$PORT/status > /dev/null
 do
-    echo "Waiting for Selenium Hub..."
-    sleep 1
+    echo "Waiting for Selenium Hub on port $PORT..."
+    sleep 2
 done
+
+echo "Selenium Ready!"
